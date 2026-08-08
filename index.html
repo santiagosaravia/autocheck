@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AutoCheck — Inspección Vehicular Guiada</title>
+<meta name="description" content="Plataforma de inspección vehicular guiada, paso a paso, con checklist obligatorio.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#14171a;
+    --surface:#1c2024;
+    --surface-2:#242930;
+    --surface-3:#2c3239;
+    --border:#343b42;
+    --text:#f1efea;
+    --text-dim:#9aa2ab;
+    --text-faint:#5c646c;
+    --accent:#ff6a13;
+    --accent-dim:#7a3b17;
+    --accent-soft:#3a2a1e;
+    --good:#3fa34d;
+    --good-soft:#17281a;
+    --bad:#e5484d;
+    --bad-soft:#2c1719;
+    --caution:#ffc94a;
+    --radius:10px;
+    --font-display:'Oswald', sans-serif;
+    --font-body:'Inter', sans-serif;
+    --font-mono:'IBM Plex Mono', monospace;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--font-body);
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+    background-image:
+      radial-gradient(circle at 10% 0%, rgba(255,106,19,0.06), transparent 40%),
+      radial-gradient(circle at 90% 100%, rgba(63,163,77,0.05), transparent 40%);
+  }
+  a{color:inherit;}
+  button{font-family:inherit;}
+  ::selection{background:var(--accent);color:#141414;}
+
+  /* ---------- Layout shell ---------- */
+  .app{max-width:560px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column;position:relative;}
+  header.topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 20px;border-bottom:1px solid var(--border);
+    position:sticky;top:0;background:rgba(20,23,26,0.92);backdrop-filter:blur(6px);z-index:20;
+  }
+  .brand{display:flex;align-items:center;gap:10px;cursor:pointer;}
+  .brand-mark{
+    width:30px;height:30px;border-radius:6px;background:var(--accent);
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-display);font-weight:700;color:#161616;font-size:16px;
+    transform:rotate(-4deg);
+  }
+  .brand-word{font-family:var(--font-display);font-weight:600;font-size:19px;letter-spacing:0.3px;}
+  .brand-tag{font-family:var(--font-mono);font-size:10px;color:var(--text-faint);letter-spacing:0.06em;text-transform:uppercase;margin-top:1px;}
+  .topbar-right{display:flex;align-items:center;gap:14px;}
+  .pill{
+    font-family:var(--font-mono);font-size:11px;color:var(--text-dim);
+    border:1px solid var(--border);border-radius:20px;padding:4px 10px;
+    letter-spacing:0.03em;
+  }
+  main{flex:1;display:flex;flex-direction:column;}
+  .screen{display:none;flex-direction:column;flex:1;padding:22px 20px 100px;animation:fade .25s ease;}
+  .screen.active{display:flex;}
+  @keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+
+  .eyebrow{
+    font-family:var(--font-mono);font-size:11px;letter-spacing:0.12em;text-transform:uppercase;
+    color:var(--accent);margin:0 0 8px;
+  }
+  h1.page-title{font-family:var(--font-display);font-size:30px;font-weight:600;margin:0 0 6px;letter-spacing:0.2px;line-height:1.15;}
+  .page-sub{color:var(--text-dim);font-size:14.5px;line-height:1.5;margin:0 0 26px;}
+
+  /* ---------- Buttons ---------- */
+  .btn{
+    appearance:none;border:none;border-radius:8px;padding:14px 20px;
+    font-family:var(--font-body);font-weight:600;font-size:15px;cursor:pointer;
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    transition:transform .12s ease, filter .12s ease, opacity .12s ease;
+  }
+  .btn:active{transform:scale(0.98);}
+  .btn-primary{background:var(--accent);color:#161514;}
+  .btn-primary:hover{filter:brightness(1.08);}
+  .btn-primary:disabled{background:var(--surface-3);color:var(--text-faint);cursor:not-allowed;}
+  .btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border);}
+  .btn-ghost:hover{border-color:var(--text-dim);}
+  .btn-block{width:100%;}
+  .btn-sm{padding:9px 14px;font-size:13px;border-radius:7px;}
+  .btn-danger{background:transparent;color:var(--bad);border:1px solid var(--bad);}
+
+  /* ---------- Start screen ---------- */
+  .hero-diagram{
+    border:1px solid var(--border);background:var(--surface);border-radius:var(--radius);
+    padding:26px 20px;margin-bottom:22px;position:relative;overflow:hidden;
+  }
+  .hero-diagram::before{
+    content:"";position:absolute;inset:0;
+    background-image:repeating-linear-gradient(45deg, rgba(255,255,255,0.015) 0 2px, transparent 2px 14px);
+  }
+  .ring-wrap{position:relative;width:220px;height:220px;margin:0 auto;}
+  .ring-car{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
+  .ring-dot{
+    position:absolute;width:34px;height:34px;border-radius:50%;
+    background:var(--surface-2);border:1.5px solid var(--border);
+    display:flex;align-items:center;justify-content:center;
+    font-size:14px;color:var(--text-faint);transform:translate(-50%,-50%);
+    transition:all .2s ease;
+  }
+  .ring-dot.done{background:var(--good-soft);border-color:var(--good);color:var(--good);}
+  .ring-dot.active{background:var(--accent);border-color:var(--accent);color:#161514;box-shadow:0 0 0 5px var(--accent-soft);}
+
+  .stat-row{display:flex;gap:10px;margin-top:18px;}
+  .stat-box{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 14px;}
+  .stat-num{font-family:var(--font-display);font-size:22px;color:var(--accent);}
+  .stat-label{font-family:var(--font-mono);font-size:10px;color:var(--text-dim);letter-spacing:0.05em;text-transform:uppercase;margin-top:2px;}
+
+  .history-block{margin-top:30px;}
+  .history-title{font-family:var(--font-display);font-size:15px;letter-spacing:0.3px;color:var(--text-dim);margin-bottom:10px;text-transform:uppercase;}
+  .history-item{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    padding:12px 14px;margin-bottom:8px;cursor:pointer;
+  }
+  .history-item:hover{border-color:var(--text-faint);}
+  .history-plate{font-family:var(--font-mono);font-weight:600;font-size:14px;letter-spacing:0.04em;}
+  .history-meta{font-size:12px;color:var(--text-dim);margin-top:2px;}
+  .badge{font-family:var(--font-mono);font-size:10px;padding:3px 8px;border-radius:20px;letter-spacing:0.04em;text-transform:uppercase;white-space:nowrap;}
+  .badge-ok{background:var(--good-soft);color:var(--good);border:1px solid var(--good);}
+  .badge-warn{background:#2c2410;color:var(--caution);border:1px solid var(--caution);}
+  .badge-bad{background:var(--bad-soft);color:var(--bad);border:1px solid var(--bad);}
+  .badge-progress{background:var(--surface-2);color:var(--text-dim);border:1px solid var(--border);}
+  .empty-note{color:var(--text-faint);font-size:13px;font-style:italic;}
+
+  /* ---------- Form ---------- */
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-family:var(--font-mono);font-size:11px;letter-spacing:0.05em;text-transform:uppercase;color:var(--text-dim);margin-bottom:6px;}
+  .field input, .field select, .field textarea{
+    width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;
+    padding:12px 13px;color:var(--text);font-size:15px;font-family:var(--font-body);
+  }
+  .field input:focus, .field select:focus, .field textarea:focus{outline:none;border-color:var(--accent);}
+  .field-row{display:flex;gap:12px;}
+  .field-row .field{flex:1;}
+  .req::after{content:" *";color:var(--accent);}
+
+  /* ---------- Checklist progress ---------- */
+  .progress-wrap{margin-bottom:22px;}
+  .progress-track{height:6px;background:var(--surface-2);border-radius:6px;overflow:hidden;border:1px solid var(--border);}
+  .progress-fill{height:100%;background:var(--accent);border-radius:6px;transition:width .3s ease;}
+  .progress-meta{display:flex;justify-content:space-between;align-items:center;margin-top:8px;}
+  .step-count{font-family:var(--font-mono);font-size:12px;color:var(--text-dim);}
+  .cat-chip{font-family:var(--font-mono);font-size:10.5px;color:var(--accent);letter-spacing:0.06em;text-transform:uppercase;border:1px solid var(--accent-dim);background:var(--accent-soft);padding:3px 9px;border-radius:20px;}
+
+  .step-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px 20px;flex:1;display:flex;flex-direction:column;}
+  .step-title{font-family:var(--font-display);font-size:24px;font-weight:600;margin:0 0 8px;line-height:1.2;}
+  .step-instruction{color:var(--text-dim);font-size:14px;line-height:1.55;margin:0 0 20px;}
+
+  .position-ring{width:150px;height:150px;margin:6px auto 22px;position:relative;flex-shrink:0;}
+  .position-ring svg{position:absolute;inset:0;width:100%;height:100%;}
+  .pos-dot{
+    position:absolute;width:26px;height:26px;border-radius:50%;transform:translate(-50%,-50%);
+    background:var(--surface-2);border:1.5px solid var(--border);
+  }
+  .pos-dot.current{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 6px var(--accent-soft);}
+  .pos-dot.passed{background:var(--good-soft);border-color:var(--good);}
+
+  .icon-badge{
+    width:64px;height:64px;border-radius:16px;background:var(--surface-2);border:1px solid var(--border);
+    display:flex;align-items:center;justify-content:center;font-size:28px;margin:2px auto 22px;
+  }
+
+  /* capture zone */
+  .capture-zone{
+    border:1.5px dashed var(--border);border-radius:12px;
+    padding:26px 16px;text-align:center;cursor:pointer;position:relative;
+    background:var(--surface-2);margin-bottom:16px;transition:border-color .15s ease;
+  }
+  .capture-zone:hover{border-color:var(--accent);}
+  .capture-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;}
+  .capture-icon{font-size:26px;margin-bottom:8px;}
+  .capture-label{font-weight:600;font-size:14.5px;}
+  .capture-hint{font-family:var(--font-mono);font-size:11px;color:var(--text-faint);margin-top:4px;}
+
+  .photo-preview{position:relative;border-radius:12px;overflow:hidden;margin-bottom:16px;border:1px solid var(--border);}
+  .photo-preview img{width:100%;display:block;max-height:280px;object-fit:cover;}
+  .retake-btn{
+    position:absolute;top:10px;right:10px;background:rgba(20,20,20,0.75);border:1px solid rgba(255,255,255,0.2);
+    color:#fff;font-size:11px;padding:6px 10px;border-radius:20px;cursor:pointer;font-family:var(--font-mono);
+  }
+  .stamp{
+    position:absolute;bottom:12px;left:12px;
+    border:2px solid var(--good);color:var(--good);
+    font-family:var(--font-mono);font-weight:600;font-size:11px;letter-spacing:0.08em;
+    padding:4px 10px;border-radius:4px;transform:rotate(-6deg);
+    background:rgba(23,40,26,0.75);text-transform:uppercase;
+  }
+  .stamp.flagged{border-color:var(--bad);color:var(--bad);background:rgba(44,23,25,0.75);}
+
+  .flag-row{
+    display:flex;align-items:center;gap:10px;background:var(--surface-2);border:1px solid var(--border);
+    border-radius:10px;padding:12px 14px;margin-bottom:10px;cursor:pointer;
+  }
+  .flag-row input{width:17px;height:17px;accent-color:var(--bad);}
+  .flag-row-label{font-size:13.5px;font-weight:500;}
+  .flag-row-label small{display:block;color:var(--text-faint);font-weight:400;font-size:11.5px;margin-top:1px;}
+
+  .nav-row{display:flex;gap:10px;margin-top:auto;padding-top:20px;}
+  .nav-row .btn{flex:1;}
+
+  /* geolocation strip */
+  .geo-strip{
+    display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:11px;color:var(--text-faint);
+    margin-bottom:18px;
+  }
+  .geo-dot{width:7px;height:7px;border-radius:50%;background:var(--good);flex-shrink:0;}
+  .geo-dot.off{background:var(--text-faint);}
+
+  /* summary grid */
+  .summary-vehicle{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:18px;}
+  .summary-vehicle-plate{font-family:var(--font-mono);font-size:20px;font-weight:600;letter-spacing:0.05em;}
+  .summary-vehicle-desc{color:var(--text-dim);font-size:13.5px;margin-top:2px;}
+  .kv-row{display:flex;justify-content:space-between;font-size:12.5px;padding:5px 0;border-top:1px solid var(--border);margin-top:8px;}
+  .kv-row span:first-child{color:var(--text-faint);font-family:var(--font-mono);}
+
+  .photo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:22px;}
+  .photo-cell{border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface-2);position:relative;}
+  .photo-cell img{width:100%;height:110px;object-fit:cover;display:block;}
+  .photo-cell .cap{font-family:var(--font-mono);font-size:9.5px;color:var(--text-dim);padding:6px 8px;line-height:1.3;}
+  .photo-cell.flag{border-color:var(--bad);}
+  .photo-cell .flag-tag{position:absolute;top:6px;right:6px;background:var(--bad);color:#fff;font-size:9px;font-family:var(--font-mono);padding:2px 6px;border-radius:4px;}
+
+  .verdict-options{display:flex;flex-direction:column;gap:10px;margin-bottom:18px;}
+  .verdict-opt{
+    display:flex;align-items:flex-start;gap:12px;border:1.5px solid var(--border);border-radius:10px;
+    padding:13px 14px;cursor:pointer;background:var(--surface);
+  }
+  .verdict-opt input{margin-top:3px;accent-color:var(--accent);width:16px;height:16px;}
+  .verdict-opt strong{font-size:14px;display:block;}
+  .verdict-opt small{color:var(--text-dim);font-size:12px;}
+  .verdict-opt.sel-ok{border-color:var(--good);}
+  .verdict-opt.sel-warn{border-color:var(--caution);}
+  .verdict-opt.sel-bad{border-color:var(--bad);}
+
+  /* report */
+  .report-sheet{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:26px 22px;}
+  .report-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid var(--border);padding-bottom:16px;margin-bottom:18px;}
+  .report-id{font-family:var(--font-mono);font-size:11px;color:var(--text-faint);}
+  .verdict-banner{
+    padding:14px 16px;border-radius:10px;margin-bottom:20px;font-family:var(--font-display);
+    font-size:17px;letter-spacing:0.3px;display:flex;align-items:center;gap:10px;
+  }
+  .verdict-banner.ok{background:var(--good-soft);color:var(--good);border:1px solid var(--good);}
+  .verdict-banner.warn{background:#2c2410;color:var(--caution);border:1px solid var(--caution);}
+  .verdict-banner.bad{background:var(--bad-soft);color:var(--bad);border:1px solid var(--bad);}
+
+  .report-section-title{font-family:var(--font-mono);font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-dim);margin:22px 0 10px;}
+
+  .report-photo-full{margin-bottom:14px;border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+  .report-photo-full img{width:100%;display:block;}
+  .report-photo-full .cap{padding:10px 12px;font-size:12.5px;}
+  .report-photo-full .cap b{display:block;font-size:13px;margin-bottom:2px;}
+  .report-photo-full .note{color:var(--bad);font-size:12px;margin-top:4px;}
+
+  .footer-actions{display:flex;gap:10px;margin-top:26px;}
+  .footer-actions .btn{flex:1;}
+
+  .disclaimer{font-size:11px;color:var(--text-faint);line-height:1.5;margin-top:22px;border-top:1px solid var(--border);padding-top:14px;}
+
+  /* delete button + security modal */
+  .delete-icon-btn{
+    background:transparent;border:1px solid var(--border);color:var(--text-faint);
+    width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:14px;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .delete-icon-btn:hover{border-color:var(--bad);color:var(--bad);}
+
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(10,11,12,0.72);backdrop-filter:blur(2px);
+    display:flex;align-items:center;justify-content:center;z-index:200;
+    opacity:0;pointer-events:none;transition:opacity .2s ease;padding:20px;
+  }
+  .modal-overlay.show{opacity:1;pointer-events:auto;}
+  .modal-box{
+    background:var(--surface);border:1px solid var(--border);border-radius:14px;
+    padding:24px 22px;max-width:340px;width:100%;
+  }
+  .modal-icon{font-size:26px;margin-bottom:10px;}
+  .modal-title{font-family:var(--font-display);font-size:19px;font-weight:600;margin:0 0 6px;}
+  .modal-sub{color:var(--text-dim);font-size:13.5px;line-height:1.5;margin:0 0 18px;}
+  .modal-sub b{color:var(--text);}
+  .modal-code-input{
+    width:100%;background:var(--surface-2);border:1.5px solid var(--border);border-radius:8px;
+    padding:13px;font-family:var(--font-mono);font-size:22px;letter-spacing:0.3em;text-align:center;
+    color:var(--text);margin-bottom:16px;
+  }
+  .modal-code-input:focus{outline:none;border-color:var(--bad);}
+  .modal-actions{display:flex;gap:10px;}
+  .modal-actions .btn{flex:1;}
+
+  /* misc */
+  .toast{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);
+    background:var(--surface-3);border:1px solid var(--border);color:var(--text);
+    padding:10px 18px;border-radius:30px;font-size:13px;z-index:100;opacity:0;pointer-events:none;
+    transition:opacity .25s ease, transform .25s ease;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+
+  /* print-only compact grid: oculto en pantalla, se muestra al imprimir.
+     La versión de pantalla (.screen-only) hace lo inverso. */
+  .print-only{display:none;}
+
+  @media print{
+    header.topbar,.footer-actions,.nav-row{display:none !important;}
+    body{background:#fff;color:#111;font-size:11px;}
+    .app{max-width:100%;}
+    .report-sheet{border:none;background:#fff;color:#111;padding:0;}
+    .verdict-banner.ok{background:#e7f5ea;color:#1a6b2c;border-color:#1a6b2c;}
+    .verdict-banner.warn{background:#fff6e0;color:#8a6a00;border-color:#8a6a00;}
+    .verdict-banner.bad{background:#fbe7e8;color:#a11d22;border-color:#a11d22;}
+    .summary-vehicle{background:#f7f7f7;border-color:#ddd;}
+    .kv-row{border-color:#ddd;}
+
+    /* Oculta la versión "grande" de pantalla y muestra la grilla compacta */
+    .screen-only{display:none !important;}
+    .print-only{display:block !important;}
+
+    .print-group-title{
+      font-family:var(--font-mono), monospace;font-size:11px;text-transform:uppercase;
+      letter-spacing:0.06em;font-weight:700;color:#111;
+      margin:14px 0 6px;padding-bottom:4px;border-bottom:1px solid #ccc;
+      break-after:avoid;
+    }
+    .print-photo-grid{
+      display:grid;grid-template-columns:repeat(3, 1fr);gap:8px;margin-bottom:8px;
+    }
+    .print-photo-grid .cell{
+      border:1px solid #ccc;border-radius:5px;overflow:hidden;background:#fff;
+      position:relative;break-inside:avoid;break-inside:avoid-page;page-break-inside:avoid;
+    }
+    .print-photo-grid .cell img{width:100%;height:150px;object-fit:cover;display:block;}
+    .print-photo-grid .cell .cap{font-size:8.5px;line-height:1.35;padding:5px 6px;color:#222;}
+    .print-photo-grid .cell .cap b{display:block;font-size:9px;}
+    .print-photo-grid .cell.flag{border-color:#c62828;border-width:1.5px;}
+    .print-photo-grid .cell .flag-tag{
+      position:absolute;top:5px;right:5px;background:#c62828;color:#fff;
+      font-size:7.5px;font-family:var(--font-mono), monospace;padding:2px 5px;border-radius:3px;
+    }
+    .disclaimer{font-size:8.5px;}
+    .report-head{break-after:avoid;}
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation:none !important;transition:none !important;}
+  }
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="topbar">
+    <div class="brand" onclick="goScreen('start')">
+      <div class="brand-mark">AC</div>
+      <div>
+        <div class="brand-word">AutoCheck</div>
+        <div class="brand-tag">Interior · Uruguay</div>
+      </div>
+    </div>
+    <div class="topbar-right">
+      <span class="pill" id="clockPill">--:--</span>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ============ SCREEN: START ============ -->
+    <section class="screen active" id="screen-start">
+      <p class="eyebrow">Piloto operativo</p>
+      <h1 class="page-title">Inspección vehicular<br>guiada, paso a paso.</h1>
+      <p class="page-sub">Checklist fotográfico obligatorio. Ningún paso se puede saltear. Al finalizar se genera un informe con veredicto, listo para el cliente.</p>
+
+      <div class="hero-diagram">
+        <div class="ring-wrap" id="heroRing"></div>
+      </div>
+
+      <div class="stat-row">
+        <div class="stat-box"><div class="stat-num" id="statTotal">0</div><div class="stat-label">Inspecciones</div></div>
+        <div class="stat-box"><div class="stat-num" id="statOk">0</div><div class="stat-label">Aprobadas</div></div>
+        <div class="stat-box"><div class="stat-num" id="statFlag">0</div><div class="stat-label">Con observ.</div></div>
+      </div>
+
+      <div style="margin-top:22px;">
+        <button class="btn btn-primary btn-block" onclick="goScreen('form')">+ Nueva inspección</button>
+      </div>
+
+      <div class="history-block">
+        <div class="history-title">Historial</div>
+        <div id="historyList"></div>
+      </div>
+    </section>
+
+    <!-- ============ SCREEN: FORM ============ -->
+    <section class="screen" id="screen-form">
+      <p class="eyebrow">Paso 0 · Datos base</p>
+      <h1 class="page-title">Datos del vehículo</h1>
+      <p class="page-sub">Esta información encabeza el informe final.</p>
+
+      <div class="field-row">
+        <div class="field"><label class="req">Matrícula</label><input id="f-plate" placeholder="SAB 1234" style="text-transform:uppercase;"></div>
+        <div class="field"><label>Año</label><input id="f-year" placeholder="2019" inputmode="numeric"></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label class="req">Marca</label><input id="f-brand" placeholder="Chevrolet"></div>
+        <div class="field"><label class="req">Modelo</label><input id="f-model" placeholder="Onix"></div>
+      </div>
+      <div class="field"><label>Cliente / propietario</label><input id="f-client" placeholder="Nombre y apellido"></div>
+      <div class="field-row">
+        <div class="field"><label class="req">Inspector</label><input id="f-inspector" placeholder="Nombre del inspector"></div>
+        <div class="field"><label>Ciudad</label><input id="f-city" placeholder="Tacuarembó"></div>
+      </div>
+      <div class="field"><label>Solicitado por</label>
+        <select id="f-source">
+          <option value="particular">Cliente particular (B2C)</option>
+          <option value="concesionaria">Concesionaria (B2B)</option>
+          <option value="flota">Empresa / flota (B2B)</option>
+          <option value="financiera">Financiera</option>
+        </select>
+      </div>
+
+      <div class="nav-row">
+        <button class="btn btn-ghost" onclick="goScreen('start')">Cancelar</button>
+        <button class="btn btn-primary" onclick="startChecklist()">Comenzar checklist →</button>
+      </div>
+    </section>
+
+    <!-- ============ SCREEN: CHECKLIST ============ -->
+    <section class="screen" id="screen-checklist">
+      <div class="progress-wrap">
+        <div class="progress-track"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+        <div class="progress-meta">
+          <span class="step-count" id="stepCount">Paso 1 de 23</span>
+          <span class="cat-chip" id="catChip">Identificación</span>
+        </div>
+      </div>
+
+      <div class="geo-strip" id="geoStrip">
+        <span class="geo-dot off" id="geoDot"></span>
+        <span id="geoText">Ubicando GPS del inspector…</span>
+      </div>
+
+      <div class="step-card">
+        <div id="stepVisual"></div>
+        <h2 class="step-title" id="stepTitle">—</h2>
+        <p class="step-instruction" id="stepInstruction">—</p>
+
+        <div id="stepExtraField"></div>
+
+        <div id="captureContainer"></div>
+
+        <div class="flag-row" id="flagRow" onclick="toggleFlag(event)">
+          <input type="checkbox" id="flagCheck">
+          <div class="flag-row-label">Marcar observación en este ítem
+            <small>Golpe, desgaste, falla u otro detalle a registrar</small>
+          </div>
+        </div>
+        <div id="noteField" style="display:none;">
+          <div class="field"><textarea id="noteText" rows="2" placeholder="Describí la observación…"></textarea></div>
+        </div>
+
+        <div class="nav-row">
+          <button class="btn btn-ghost" id="btnBack" onclick="prevStep()">← Atrás</button>
+          <button class="btn btn-primary" id="btnNext" onclick="nextStep()" disabled>Siguiente →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ SCREEN: SUMMARY ============ -->
+    <section class="screen" id="screen-summary">
+      <p class="eyebrow">Revisión final</p>
+      <h1 class="page-title">Cerrar inspección</h1>
+      <p class="page-sub">Revisá las fotos, elegí el veredicto y agregá notas generales antes de generar el informe.</p>
+
+      <div class="summary-vehicle" id="summaryVehicle"></div>
+
+      <div class="report-section-title">Fotos capturadas (<span id="photoCountSummary"></span>)</div>
+      <div class="photo-grid" id="summaryPhotoGrid"></div>
+
+      <div id="missingWrap" style="display:none;"></div>
+
+      <div class="report-section-title">Veredicto</div>
+      <div class="verdict-options" id="verdictOptions">
+        <label class="verdict-opt" data-v="ok">
+          <input type="radio" name="verdict" value="ok">
+          <div><strong>Aprobado</strong><small>Sin observaciones relevantes.</small></div>
+        </label>
+        <label class="verdict-opt" data-v="warn">
+          <input type="radio" name="verdict" value="warn">
+          <div><strong>Aprobado con observaciones</strong><small>El vehículo tiene puntos a considerar, pero no invalidantes.</small></div>
+        </label>
+        <label class="verdict-opt" data-v="bad">
+          <input type="radio" name="verdict" value="bad">
+          <div><strong>Rechazado</strong><small>Se detectaron problemas graves de seguridad o adulteración.</small></div>
+        </label>
+      </div>
+
+      <div class="field"><label>Notas generales del inspector</label><textarea id="generalNotes" rows="3" placeholder="Resumen general, recomendaciones, próximos pasos…"></textarea></div>
+
+      <div class="nav-row">
+        <button class="btn btn-ghost" onclick="goScreen('checklist'); jumpToStep(currentInspection.steps.length-1);">← Revisar fotos</button>
+        <button class="btn btn-primary" id="btnFinish" onclick="finishInspection()" disabled>Generar informe →</button>
+      </div>
+    </section>
+
+    <!-- ============ SCREEN: REPORT ============ -->
+    <section class="screen" id="screen-report">
+      <div class="report-sheet" id="reportSheet"></div>
+      <div class="footer-actions">
+        <button class="btn btn-ghost" onclick="window.print()">Imprimir / Guardar PDF</button>
+        <button class="btn btn-primary" onclick="goScreen('start')">Finalizar</button>
+      </div>
+      <div class="footer-actions">
+        <button class="btn btn-danger btn-block" onclick="openDeleteModal(currentInspection.id)">🗑 Borrar esta inspección</button>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="modal-overlay" id="deleteModalOverlay">
+  <div class="modal-box">
+    <div class="modal-icon">🗑</div>
+    <h3 class="modal-title">Borrar inspección</h3>
+    <p class="modal-sub">Vas a eliminar <b id="deleteModalPlate">esta inspección</b> de este dispositivo. Esta acción no se puede deshacer. Ingresá el código de seguridad para confirmar.</p>
+    <input type="password" inputmode="numeric" maxlength="6" class="modal-code-input" id="deleteCodeInput" placeholder="••••" onkeydown="if(event.key==='Enter') confirmDelete();">
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeDeleteModal()">Cancelar</button>
+      <button class="btn btn-danger" onclick="confirmDelete()">Borrar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* =========================================================
+   AUTOCHECK — plataforma base de inspección vehicular
+   Prototipo estático (sin backend). Persistencia en IndexedDB.
+   ========================================================= */
+
+
+/* ---------- Checklist definition ----------
+   Cada paso tiene:
+   - cat/catLabel: etiqueta que se ve en el chip durante el recorrido (más granular)
+   - group: agrupamiento real usado en el informe/impresión (Exterior · Interior · Chasis · Motor · Documentación)
+*/
+const STEPS = [
+  { id:'placa-d', cat:'identificacion', catLabel:'Identificación', group:'exterior', title:'Placa delantera', instruction:'Fotografiá la matrícula delantera. Debe leerse completa y sin reflejos.', type:'photo-text', fieldLabel:'Número de matrícula', icon:'🔖' },
+  { id:'frente', cat:'exterior', catLabel:'Exterior', group:'exterior', title:'Frente completo', instruction:'Ubicate a unos 3 metros, de frente al vehículo. Encuadrá parachoques, capot y ambas ópticas.', type:'photo', ring:'frente' },
+  { id:'pintura-capot', cat:'pintura', catLabel:'Espesor de pintura', group:'exterior', title:'Espesor de pintura — Capot', instruction:'Apoyá el micrómetro/pintómetro sobre el capot y fotografiá la lectura digital. Cargá el valor medido.', type:'photo-number', fieldLabel:'Espesor medido (µm)', placeholder:'Ej: 118', icon:'📏' },
+  { id:'diag-fi', cat:'exterior', catLabel:'Exterior', group:'exterior', title:'Diagonal delantera izquierda', instruction:'Girá 45° hacia la izquierda del vehículo. Debe verse el frente y el lateral izquierdo a la vez.', type:'photo', ring:'diag-fi' },
+  { id:'neu-di', cat:'neumaticos', catLabel:'Neumáticos', group:'exterior', title:'Neumático delantero izquierdo', instruction:'Foto cercana mostrando dibujo, desgaste y estado de la llanta.', type:'photo', icon:'🛞' },
+  { id:'lat-i', cat:'exterior', catLabel:'Exterior', group:'exterior', title:'Lateral izquierdo completo', instruction:'Vehículo completo de perfil, desde una distancia que lo abarque de punta a punta.', type:'photo', ring:'lat-i' },
+  { id:'pintura-puerta-di', cat:'pintura', catLabel:'Espesor de pintura', group:'exterior', title:'Espesor de pintura — Puerta delantera izquierda', instruction:'Medición del micrómetro sobre la puerta delantera izquierda. Fotografiá la lectura y cargá el valor.', type:'photo-number', fieldLabel:'Espesor medido (µm)', placeholder:'Ej: 122', icon:'📏' },
+  { id:'pintura-puerta-ti', cat:'pintura', catLabel:'Espesor de pintura', group:'exterior', title:'Espesor de pintura — Puerta trasera izquierda', instruction:'Medición del micrómetro sobre la puerta trasera izquierda. Fotografiá la lectura y cargá el valor.', type:'photo-number', fieldLabel:'Espesor medido (µm)', placeholder:'Ej: 120', icon:'📏' },
+  { id:'neu-ti', cat:'neumaticos', catLabel:'Neumáticos', group:'exterior', title:'Neumático trasero izquierdo', instruction:'Foto cercana mostrando dibujo, desgaste y estado de la llanta.', type:'photo', icon:'🛞' },
+  { id:'diag-ti', cat:'exterior', catLabel:'Exterior', group:'exterior', title:'Diagonal trasera izquierda', instruction:'Girá hacia la parte trasera izquierda, en ángulo de 45°.', type:'photo', ring:'diag-ti' },
+  { id:'pintura-guardabarro-ti', cat:'pintura', catLabel:'Espesor de pintura', group:'exterior', title:'Espesor de pintura — Guardabarro trasero izquierdo', instruction:'Medición del micrómetro sobre el guardabarro/aleta trasera izquierda. Fotografiá la lectura y cargá el valor.', type:'photo-number', fieldLabel:'Espesor medido (µm)', placeholder:'Ej: 115', icon:'📏' },
+  { id:'trasera', cat:'exterior', catLabel:'Exterior', group:'exterior', title:'Parte trasera completa', instruction:'De frente a la parte trasera. Encuadrá baúl, parachoques y ambas ópticas.', type:'photo', ring:'trasera' },
+  { id:'pintura-baul', cat:'pintura', catLabel:'Espesor de pintura', group:'exterior', title:'Espesor de pintura — Tapa de baúl', instruction:'Medición del micrómetro sobre la tapa de baúl / portón trasero. Fotografiá la lectura y cargá el valor.', type:'photo-number', fieldLabel:'Espesor medido (µm)', placeholder:'Ej: 125', icon:'📏' },
+  { id:'placa-t', cat:'identificacion', catLabel:'Identificación', group:'exterior', title:'Placa trasera', instruction:'Fotografiá la matrícula trasera, legible y sin reflejos.', type:'photo-text', fieldLabel:'Número de matrícula (confirmar)', icon:'🔖' },
+  { id:'diag-td', cat:'exterior', catLabel:'Exterior', group:'exterior', title:'Diagonal trasera derecha', instruction:'Ángulo de 45° hacia la parte trasera derecha.', type:'photo', ring:'diag-td' },
+  { id:'neu-td', cat:'neumaticos', catLabel:'Neumáticos', group:'exterior', title:'Neumático trasero derecho', instruction:'Foto cercana mostrando dibujo, desgaste y estado de la llanta.', type:'photo', icon:'🛞' },
+  { id:'lat-d', cat:'exterior', catLabel:'Exterior', group:'exterior', title:'Lateral derecho completo', instruction:'Vehículo completo de perfil derecho, de punta a punta.', type:'photo', ring:'lat-d' },
+  { id:'pintura-puerta-td', cat:'pintura', catLabel:'Espesor de pintura', group:'exterior', title:'Espesor de pintura — Puerta trasera derecha', instruction:'Medición del micrómetro sobre la puerta trasera derecha. Fotografiá la lectura y cargá el valor.', type:'photo-number', fieldLabel:'Espesor medido (µm)', placeholder:'Ej: 121', icon:'📏' },
+  { id:'pintura-puerta-dd', cat:'pintura', catLabel:'Espesor de pintura', group:'exterior', title:'Espesor de pintura — Puerta delantera derecha', instruction:'Medición del micrómetro sobre la puerta delantera derecha. Fotografiá la lectura y cargá el valor.', type:'photo-number', fieldLabel:'Espesor medido (µm)', placeholder:'Ej: 119', icon:'📏' },
+  { id:'neu-dd', cat:'neumaticos', catLabel:'Neumáticos', group:'exterior', title:'Neumático delantero derecho', instruction:'Foto cercana mostrando dibujo, desgaste y estado de la llanta.', type:'photo', icon:'🛞' },
+  { id:'diag-fd', cat:'exterior', catLabel:'Exterior', group:'exterior', title:'Diagonal delantera derecha', instruction:'Ángulo de 45° hacia el frente derecho, cerrando la vuelta al vehículo.', type:'photo', ring:'diag-fd' },
+  { id:'techo', cat:'exterior', catLabel:'Exterior', group:'exterior', title:'Techo', instruction:'Si es posible, foto elevada del techo. Buscá golpes de granizo u óxido.', type:'photo', icon:'🚗' },
+  { id:'pintura-techo', cat:'pintura', catLabel:'Espesor de pintura', group:'exterior', title:'Espesor de pintura — Techo', instruction:'Medición del micrómetro sobre el techo. Fotografiá la lectura y cargá el valor.', type:'photo-number', fieldLabel:'Espesor medido (µm)', placeholder:'Ej: 117', icon:'📏' },
+  { id:'vidrios', cat:'exterior', catLabel:'Exterior', group:'exterior', title:'Parabrisas y vidrios', instruction:'Foto del parabrisas completo. Marcá rajaduras, estrellados o calcomanías.', type:'photo', icon:'🪟' },
+  { id:'vin', cat:'identificacion', catLabel:'Identificación', group:'chasis', title:'Número de chasis (VIN)', instruction:'Fotografiá el grabado del chasis, bien legible.', type:'photo-text', fieldLabel:'Número de chasis', icon:'🔢' },
+  { id:'chasis-larguero-di', cat:'chasis', catLabel:'Chasis', group:'chasis', title:'Larguero delantero izquierdo', instruction:'Fotografiá el larguero delantero izquierdo (bajo el capot). Buscá dobleces, soldaduras no originales o corrosión.', type:'photo', icon:'🔩' },
+  { id:'chasis-larguero-dd', cat:'chasis', catLabel:'Chasis', group:'chasis', title:'Larguero delantero derecho', instruction:'Fotografiá el larguero delantero derecho. Buscá dobleces, soldaduras no originales o corrosión.', type:'photo', icon:'🔩' },
+  { id:'chasis-torre-di', cat:'chasis', catLabel:'Chasis', group:'chasis', title:'Torre de suspensión delantera izquierda', instruction:'Fotografiá la torre de suspensión izquierda, verificando alineación y ausencia de arrugas en la chapa.', type:'photo', icon:'🔩' },
+  { id:'chasis-torre-dd', cat:'chasis', catLabel:'Chasis', group:'chasis', title:'Torre de suspensión delantera derecha', instruction:'Fotografiá la torre de suspensión derecha, verificando alineación y ausencia de arrugas en la chapa.', type:'photo', icon:'🔩' },
+  { id:'chasis-piso', cat:'chasis', catLabel:'Chasis', group:'chasis', title:'Piso / bajos del vehículo', instruction:'Con el vehículo elevado o desde abajo, fotografiá el piso y los largueros centrales.', type:'photo', icon:'🔩' },
+  { id:'chasis-larguero-trasero', cat:'chasis', catLabel:'Chasis', group:'chasis', title:'Larguero / travesaño trasero', instruction:'Fotografiá el larguero o travesaño trasero, verificando estructura y ausencia de óxido perforante.', type:'photo', icon:'🔩' },
+  { id:'motor', cat:'mecanica', catLabel:'Mecánica', group:'motor', title:'Compartimento del motor', instruction:'Abrí el capot y fotografiá el motor completo. Revisá fugas y mangueras.', type:'photo', icon:'⚙️' },
+  { id:'bateria', cat:'mecanica', catLabel:'Mecánica', group:'motor', title:'Batería', instruction:'Foto de la batería: terminales, fecha y estado general.', type:'photo', icon:'🔋' },
+  { id:'obd', cat:'mecanica', catLabel:'Mecánica', group:'motor', title:'Escaneo OBD (opcional)', instruction:'Si contás con scanner, fotografiá la pantalla con el resultado y anotá los códigos de falla detectados, si los hay.', type:'photo-text', fieldLabel:'Códigos de falla detectados (dejar vacío si no hay)', icon:'🔌', optional:true },
+  { id:'odometro', cat:'identificacion', catLabel:'Identificación', group:'interior', title:'Odómetro / tablero', instruction:'Con el motor encendido, fotografiá el tablero mostrando el kilometraje.', type:'photo-number', fieldLabel:'Kilometraje (km)', placeholder:'Ej: 84213', icon:'📟' },
+  { id:'asientos', cat:'interior', catLabel:'Interior', group:'interior', title:'Asientos y tablero', instruction:'Foto general del interior: tapizados, consola y tablero.', type:'photo', icon:'🪑' },
+  { id:'cinturones', cat:'interior', catLabel:'Interior', group:'interior', title:'Cinturones de seguridad', instruction:'Foto de los cinturones extendidos, verificando estado del tejido.', type:'photo', icon:'🎗️' },
+  { id:'cedula', cat:'documentacion', catLabel:'Documentación', group:'documentacion', title:'Cédula verde / documento', instruction:'Fotografiá el documento del vehículo, legible y completo.', type:'photo-doc', icon:'📄' },
+];
+
+const RING_POS = {
+  'frente':    {top:'6%',  left:'50%'},
+  'diag-fd':   {top:'20%', left:'82%'},
+  'lat-d':     {top:'50%', left:'94%'},
+  'diag-td':   {top:'80%', left:'82%'},
+  'trasera':   {top:'94%', left:'50%'},
+  'diag-ti':   {top:'80%', left:'18%'},
+  'lat-i':     {top:'50%', left:'6%'},
+  'diag-fi':   {top:'20%', left:'18%'},
+};
+
+const GROUP_ORDER = ['exterior','interior','chasis','motor','documentacion'];
+const GROUP_LABELS = {
+  exterior: 'Exterior',
+  interior: 'Interior',
+  chasis: 'Chasis',
+  motor: 'Motor',
+  documentacion: 'Documentación',
+};
+
+/* ---------- State ---------- */
+let currentInspection = null;
+let currentStepIndex = 0;
+let geoData = null;
+
+/* ---------- Utilities ---------- */
+function uid(){ return 'insp_' + Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+function fmtDate(iso){
+  const d = new Date(iso);
+  return d.toLocaleDateString('es-UY', {day:'2-digit',month:'2-digit',year:'numeric'}) + ' ' + d.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'});
+}
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function updateClock(){
+  const now = new Date();
+  document.getElementById('clockPill').textContent = now.toLocaleTimeString('es-UY',{hour:'2-digit',minute:'2-digit'});
+}
+setInterval(updateClock, 30000); updateClock();
+
+/* ---------- Storage (IndexedDB) ----------
+   Se usa IndexedDB en lugar de localStorage porque soporta muchísimo más
+   espacio (las fotos en base64 pesan) y no tiene el límite de ~5-10MB de
+   localStorage. Para no reescribir toda la app en async/await, se mantiene
+   una caché en memoria (`inspectionsCache`) que loadAll()/saveAll() usan
+   de forma síncrona, mientras la escritura real a IndexedDB pasa en
+   segundo plano. */
+
+const DB_NAME = 'autocheck_db';
+const DB_VERSION = 1;
+const STORE_NAME = 'inspections';
+
+let dbInstance = null;
+let inspectionsCache = [];
+let storageReady = false;
+
+function openDB(){
+  return new Promise((resolve, reject)=>{
+    if(!('indexedDB' in window)){
+      reject(new Error('IndexedDB no disponible en este navegador'));
+      return;
+    }
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e)=>{
+      const db = e.target.result;
+      if(!db.objectStoreNames.contains(STORE_NAME)){
+        db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = (e)=> resolve(e.target.result);
+    req.onerror = (e)=> reject(e.target.error);
+  });
+}
+
+function dbGetAll(){
+  return new Promise((resolve, reject)=>{
+    const tx = dbInstance.transaction(STORE_NAME, 'readonly');
+    const req = tx.objectStore(STORE_NAME).getAll();
+    req.onsuccess = ()=> resolve(req.result || []);
+    req.onerror = ()=> reject(req.error);
+  });
+}
+
+function dbPut(record){
+  return new Promise((resolve, reject)=>{
+    const tx = dbInstance.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).put(record);
+    tx.oncomplete = ()=> resolve();
+    tx.onerror = ()=> reject(tx.error);
+  });
+}
+
+function dbDelete(id){
+  return new Promise((resolve, reject)=>{
+    const tx = dbInstance.transaction(STORE_NAME, 'readwrite');
+    tx.objectStore(STORE_NAME).delete(id);
+    tx.oncomplete = ()=> resolve();
+    tx.onerror = ()=> reject(tx.error);
+  });
+}
+
+async function initStorage(){
+  try{
+    dbInstance = await openDB();
+    inspectionsCache = await dbGetAll();
+    inspectionsCache.sort((a,b)=> new Date(b.createdAt) - new Date(a.createdAt));
+    storageReady = true;
+  }catch(e){
+    console.error('No se pudo inicializar IndexedDB', e);
+    inspectionsCache = [];
+    storageReady = false;
+    showToast('El almacenamiento local no está disponible en este navegador/modo.');
+  }
+}
+
+function loadAll(){
+  return inspectionsCache;
+}
+
+function saveAll(list){
+  const prevIds = new Set(inspectionsCache.map(i=>i.id));
+  const newIds = new Set(list.map(i=>i.id));
+  const removedIds = [...prevIds].filter(id => !newIds.has(id));
+  inspectionsCache = list;
+
+  if(!storageReady) return true; // caché en memoria igual queda actualizada
+
+  (async ()=>{
+    try{
+      for(const rec of list) await dbPut(rec);
+      for(const id of removedIds) await dbDelete(id);
+    }catch(e){
+      console.error('Error guardando en IndexedDB', e);
+      showToast('No se pudo guardar en el almacenamiento local.');
+    }
+  })();
+  return true;
+}
+
+function persistCurrent(){
+  const list = loadAll();
+  const idx = list.findIndex(i => i.id === currentInspection.id);
+  if(idx >= 0) list[idx] = currentInspection; else list.unshift(currentInspection);
+  saveAll(list);
+}
+
+/* ---------- Screen navigation ---------- */
+function goScreen(name){
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  window.scrollTo(0,0);
+  if(name === 'start') renderStart();
+}
+
+/* ---------- START SCREEN ---------- */
+function renderStart(){
+  const list = loadAll();
+  document.getElementById('statTotal').textContent = list.length;
+  document.getElementById('statOk').textContent = list.filter(i=>i.verdict==='ok').length;
+  document.getElementById('statFlag').textContent = list.filter(i=>i.verdict==='warn').length;
+
+  // hero ring: purely decorative, cycles all positions as "done"
+  const ring = document.getElementById('heroRing');
+  ring.innerHTML = '<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:44px;">🚗</div>';
+  Object.keys(RING_POS).forEach((key,i)=>{
+    const p = RING_POS[key];
+    const dot = document.createElement('div');
+    dot.className = 'ring-dot' + (i < 5 ? ' done' : '');
+    dot.style.top = p.top; dot.style.left = p.left;
+    dot.textContent = i < 5 ? '✓' : '';
+    ring.appendChild(dot);
+  });
+
+  const histWrap = document.getElementById('historyList');
+  if(list.length === 0){
+    histWrap.innerHTML = '<p class="empty-note">Todavía no hay inspecciones guardadas en este dispositivo.</p>';
+    return;
+  }
+  histWrap.innerHTML = '';
+  list.slice(0,12).forEach(insp=>{
+    const div = document.createElement('div');
+    div.className = 'history-item';
+    const doneSteps = insp.steps.filter(s=>s.photo).length;
+    const total = insp.steps.length;
+    let badge = '<span class="badge badge-progress">En curso</span>';
+    if(insp.verdict === 'ok') badge = '<span class="badge badge-ok">Aprobado</span>';
+    else if(insp.verdict === 'warn') badge = '<span class="badge badge-warn">Con observ.</span>';
+    else if(insp.verdict === 'bad') badge = '<span class="badge badge-bad">Rechazado</span>';
+    div.innerHTML = `
+      <div>
+        <div class="history-plate">${insp.vehicle.plate || 'SIN PATENTE'}</div>
+        <div class="history-meta">${insp.vehicle.brand||''} ${insp.vehicle.model||''} · ${doneSteps}/${total} fotos · ${fmtDate(insp.createdAt)}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        ${badge}
+        <button class="delete-icon-btn" title="Borrar inspección" onclick="event.stopPropagation(); openDeleteModal('${insp.id}');">🗑</button>
+      </div>
+    `;
+    div.onclick = () => openInspection(insp.id);
+    histWrap.appendChild(div);
+  });
+}
+
+/* ---------- DELETE (con código de seguridad) ---------- */
+const DELETE_CODE = '1310';
+let pendingDeleteId = null;
+
+function openDeleteModal(id){
+  pendingDeleteId = id;
+  const list = loadAll();
+  const insp = list.find(i=>i.id===id);
+  document.getElementById('deleteModalPlate').textContent = insp ? (insp.vehicle.plate || 'esta inspección') : 'esta inspección';
+  document.getElementById('deleteCodeInput').value = '';
+  document.getElementById('deleteModalOverlay').classList.add('show');
+  setTimeout(()=>document.getElementById('deleteCodeInput').focus(), 100);
+}
+
+function closeDeleteModal(){
+  pendingDeleteId = null;
+  document.getElementById('deleteModalOverlay').classList.remove('show');
+}
+
+function confirmDelete(){
+  const code = document.getElementById('deleteCodeInput').value.trim();
+  if(code !== DELETE_CODE){
+    showToast('Código incorrecto');
+    document.getElementById('deleteCodeInput').value = '';
+    document.getElementById('deleteCodeInput').focus();
+    return;
+  }
+  const list = loadAll().filter(i => i.id !== pendingDeleteId);
+  saveAll(list);
+  closeDeleteModal();
+  showToast('Inspección eliminada');
+  goScreen('start');
+}
+
+function openInspection(id){
+  const list = loadAll();
+  const insp = list.find(i=>i.id===id);
+  if(!insp) return;
+  currentInspection = insp;
+  if(insp.finishedAt){
+    renderReport();
+    goScreen('report');
+  } else {
+    const firstUnfinished = insp.steps.findIndex(s=>!s.photo || (s.requiresText && !s.textValue));
+    currentStepIndex = firstUnfinished === -1 ? insp.steps.length - 1 : firstUnfinished;
+    goScreen('checklist');
+    renderChecklistStep();
+  }
+}
+
+/* ---------- FORM SCREEN → start checklist ---------- */
+function startChecklist(){
+  const plate = document.getElementById('f-plate').value.trim().toUpperCase();
+  const brand = document.getElementById('f-brand').value.trim();
+  const model = document.getElementById('f-model').value.trim();
+  const inspector = document.getElementById('f-inspector').value.trim();
+
+  if(!plate || !brand || !model || !inspector){
+    showToast('Completá los campos obligatorios (*)');
+    return;
+  }
+
+  currentInspection = {
+    id: uid(),
+    createdAt: new Date().toISOString(),
+    finishedAt: null,
+    vehicle: {
+      plate, brand, model,
+      year: document.getElementById('f-year').value.trim(),
+      client: document.getElementById('f-client').value.trim(),
+      city: document.getElementById('f-city').value.trim(),
+      source: document.getElementById('f-source').value,
+    },
+    inspector: inspector,
+    geo: null,
+    verdict: null,
+    generalNotes: '',
+    steps: STEPS.map(s => ({
+      id:s.id, title:s.title, cat:s.cat, catLabel:s.catLabel, group:s.group,
+      photo:null, flagged:false, note:'', textValue:'',
+      requiresText: s.type==='photo-text' || s.type==='photo-number',
+      optional: !!s.optional,
+      capturedAt:null
+    })),
+  };
+  currentStepIndex = 0;
+  persistCurrent();
+
+  // try geolocation once per inspection (fails gracefully)
+  geoData = null;
+  document.getElementById('geoText').textContent = 'Ubicando GPS del inspector…';
+  document.getElementById('geoDot').classList.add('off');
+  if(navigator.geolocation){
+    navigator.geolocation.getCurrentPosition(
+      pos=>{
+        geoData = { lat: pos.coords.latitude.toFixed(5), lon: pos.coords.longitude.toFixed(5) };
+        currentInspection.geo = geoData;
+        persistCurrent();
+        updateGeoStrip();
+      },
+      ()=>{ updateGeoStrip(true); },
+      { timeout: 8000 }
+    );
+  } else {
+    updateGeoStrip(true);
+  }
+
+  goScreen('checklist');
+  renderChecklistStep();
+}
+
+function updateGeoStrip(failed){
+  const dot = document.getElementById('geoDot');
+  const txt = document.getElementById('geoText');
+  if(failed || !geoData){
+    dot.classList.add('off');
+    txt.textContent = 'Ubicación no disponible — el informe se genera igual.';
+  } else {
+    dot.classList.remove('off');
+    txt.textContent = `GPS capturado · ${geoData.lat}, ${geoData.lon}`;
+  }
+}
+
+/* ---------- CHECKLIST SCREEN ---------- */
+function renderChecklistStep(){
+  const def = STEPS[currentStepIndex];
+  const stepState = currentInspection.steps[currentStepIndex];
+
+  document.getElementById('progressFill').style.width = ((currentStepIndex)/(STEPS.length-1))*100 + '%';
+  document.getElementById('stepCount').textContent = `Paso ${currentStepIndex+1} de ${STEPS.length}`;
+  document.getElementById('catChip').textContent = def.catLabel;
+  document.getElementById('stepTitle').textContent = def.title;
+  document.getElementById('stepInstruction').textContent = def.instruction;
+
+  updateGeoStrip(!geoData);
+
+  // visual: ring diagram or icon
+  const visual = document.getElementById('stepVisual');
+  if(def.ring){
+    let html = '<div class="position-ring"><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:30px;">🚗</div>';
+    Object.keys(RING_POS).forEach(key=>{
+      const p = RING_POS[key];
+      const seq = Object.keys(RING_POS);
+      const thisIdx = seq.indexOf(key);
+      const curIdx = seq.indexOf(def.ring);
+      let cls = 'pos-dot';
+      if(key === def.ring) cls += ' current';
+      else if(thisIdx < curIdx) cls += ' passed';
+      html += `<div class="${cls}" style="top:${p.top};left:${p.left};"></div>`;
+    });
+    html += '</div>';
+    visual.innerHTML = html;
+  } else {
+    visual.innerHTML = `<div class="icon-badge">${def.icon || '📷'}</div>`;
+  }
+
+  // extra field (text/number)
+  const extraWrap = document.getElementById('stepExtraField');
+  if(def.type === 'photo-text' || def.type === 'photo-number'){
+    extraWrap.innerHTML = `
+      <div class="field">
+        <label>${def.fieldLabel}</label>
+        <input id="extraInput" type="${def.type==='photo-number'?'number':'text'}"
+          value="${stepState.textValue||''}" placeholder="${def.placeholder || (def.type==='photo-number'?'Ingresá el valor':'Escribí lo que se lee en la foto')}">
+      </div>`;
+    document.getElementById('extraInput').addEventListener('input', e=>{
+      stepState.textValue = e.target.value;
+      persistCurrent();
+      refreshNextButton();
+    });
+  } else {
+    extraWrap.innerHTML = '';
+  }
+
+  // capture zone
+  renderCaptureZone(stepState, def);
+
+  // flag/note
+  document.getElementById('flagCheck').checked = stepState.flagged;
+  document.getElementById('noteField').style.display = stepState.flagged ? 'block' : 'none';
+  document.getElementById('noteText').value = stepState.note || '';
+  document.getElementById('noteText').oninput = (e)=>{ stepState.note = e.target.value; persistCurrent(); };
+
+  document.getElementById('btnBack').disabled = currentStepIndex === 0;
+  refreshNextButton();
+}
+
+function renderCaptureZone(stepState, def){
+  const c = document.getElementById('captureContainer');
+  if(stepState.photo){
+    c.innerHTML = `
+      <div class="photo-preview">
+        <img src="${stepState.photo}" alt="${def.title}">
+        <span class="stamp ${stepState.flagged?'flagged':''}">${stepState.flagged?'⚠ Observado':'✓ Verificado'}</span>
+        <button class="retake-btn" onclick="retakePhoto()">Retomar foto</button>
+      </div>`;
+  } else {
+    const hint = def.optional
+      ? 'Opcional — no es necesaria para cerrar la inspección'
+      : 'Podés avanzar sin sacarla, pero se va a pedir antes de cerrar la inspección';
+    c.innerHTML = `
+      <div class="capture-zone">
+        <input type="file" accept="image/*" capture="environment" onchange="handlePhoto(event)">
+        <div class="capture-icon">📷</div>
+        <div class="capture-label">Tomar / adjuntar foto</div>
+        <div class="capture-hint">${hint}</div>
+      </div>`;
+  }
+}
+
+function retakePhoto(){
+  currentInspection.steps[currentStepIndex].photo = null;
+  currentInspection.steps[currentStepIndex].capturedAt = null;
+  persistCurrent();
+  renderChecklistStep();
+}
+
+function handlePhoto(evt){
+  const file = evt.target.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = e=>{
+    const img = new Image();
+    img.onload = ()=>{
+      // downscale para que las fotos no pesen de más (igual entran cómodas en IndexedDB)
+      const maxW = 900;
+      const scale = Math.min(1, maxW / img.width);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width * scale;
+      canvas.height = img.height * scale;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.65);
+
+      currentInspection.steps[currentStepIndex].photo = dataUrl;
+      currentInspection.steps[currentStepIndex].capturedAt = new Date().toISOString();
+      persistCurrent();
+      renderChecklistStep();
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function toggleFlag(evt){
+  const checkbox = document.getElementById('flagCheck');
+  if(evt.target !== checkbox) checkbox.checked = !checkbox.checked;
+  const stepState = currentInspection.steps[currentStepIndex];
+  stepState.flagged = checkbox.checked;
+  document.getElementById('noteField').style.display = stepState.flagged ? 'block' : 'none';
+  persistCurrent();
+  // refresh stamp if photo exists
+  renderCaptureZone(stepState, STEPS[currentStepIndex]);
+}
+
+function refreshNextButton(){
+  // La navegación entre pasos ya no exige la foto: se puede avanzar y
+  // volver libremente. El control real de "todo completo" pasa a la
+  // pantalla de resumen (renderSummary / getMissingRequiredSteps), que
+  // bloquea "Generar informe" si falta algún ítem obligatorio.
+  document.getElementById('btnNext').disabled = false;
+}
+
+function nextStep(){
+  if(currentStepIndex < STEPS.length - 1){
+    currentStepIndex++;
+    renderChecklistStep();
+  } else {
+    goScreen('summary');
+    renderSummary();
+  }
+}
+function prevStep(){
+  if(currentStepIndex > 0){
+    currentStepIndex--;
+    renderChecklistStep();
+  }
+}
+function jumpToStep(i){
+  currentStepIndex = Math.max(0, Math.min(STEPS.length-1, i));
+  renderChecklistStep();
+}
+
+/* ---------- SUMMARY SCREEN ---------- */
+function getMissingRequiredSteps(){
+  // Ítems obligatorios (optional !== true) a los que todavía les falta la foto.
+  return currentInspection.steps
+    .map((s,i)=>({...s, index:i}))
+    .filter(s => !s.optional && !s.photo);
+}
+
+function renderSummary(){
+  const v = currentInspection.vehicle;
+  document.getElementById('summaryVehicle').innerHTML = `
+    <div class="summary-vehicle-plate">${v.plate}</div>
+    <div class="summary-vehicle-desc">${v.brand} ${v.model} ${v.year?('· '+v.year):''}</div>
+    <div class="kv-row"><span>INSPECTOR</span><span>${currentInspection.inspector}</span></div>
+    <div class="kv-row"><span>CLIENTE</span><span>${v.client||'—'}</span></div>
+    <div class="kv-row"><span>CIUDAD</span><span>${v.city||'—'}</span></div>
+  `;
+
+  const photos = currentInspection.steps.filter(s=>s.photo);
+  document.getElementById('photoCountSummary').textContent = `${photos.length}/${STEPS.length}`;
+
+  const grid = document.getElementById('summaryPhotoGrid');
+  grid.innerHTML = '';
+  GROUP_ORDER.forEach(group=>{
+    const items = currentInspection.steps.filter(s=>s.group===group && s.photo);
+    if(items.length === 0) return;
+    const heading = document.createElement('div');
+    heading.style.cssText = 'grid-column:1/-1;font-family:var(--font-mono);font-size:10.5px;color:var(--accent);text-transform:uppercase;letter-spacing:0.06em;margin-top:6px;';
+    heading.textContent = `${GROUP_LABELS[group]} (${items.length})`;
+    grid.appendChild(heading);
+    items.forEach(s=>{
+      const cell = document.createElement('div');
+      cell.className = 'photo-cell' + (s.flagged ? ' flag' : '');
+      cell.innerHTML = `<img src="${s.photo}"> ${s.flagged?'<span class="flag-tag">OBS</span>':''} <div class="cap">${s.title}</div>`;
+      grid.appendChild(cell);
+    });
+  });
+
+  // ---- Pendientes: ítems obligatorios sin foto ----
+  const missing = getMissingRequiredSteps();
+  const missingWrap = document.getElementById('missingWrap');
+  if(missing.length > 0){
+    missingWrap.style.display = 'block';
+    missingWrap.innerHTML = `
+      <div class="report-section-title" style="color:var(--bad);">Faltan ${missing.length} foto(s) obligatoria(s)</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px;">
+        ${missing.map(s => `
+          <div class="history-item" style="border-color:var(--bad);" onclick="goScreen('checklist'); jumpToStep(${s.index});">
+            <div class="history-plate" style="font-size:13px;">${s.title}</div>
+            <span class="badge badge-bad">Completar</span>
+          </div>`).join('')}
+      </div>`;
+  } else {
+    missingWrap.style.display = 'none';
+    missingWrap.innerHTML = '';
+  }
+
+  const flaggedCount = currentInspection.steps.filter(s=>s.flagged).length;
+  const suggestion = flaggedCount === 0 ? 'ok' : (flaggedCount <= 3 ? 'warn' : 'bad');
+  const radios = document.querySelectorAll('input[name=verdict]');
+  radios.forEach(r=>{
+    r.checked = (r.value === (currentInspection.verdict || suggestion));
+    r.onchange = ()=>{
+      currentInspection.verdict = r.value;
+      updateVerdictStyles();
+      document.getElementById('btnFinish').disabled = getMissingRequiredSteps().length > 0;
+      persistCurrent();
+    };
+  });
+  currentInspection.verdict = currentInspection.verdict || suggestion;
+  updateVerdictStyles();
+  document.getElementById('btnFinish').disabled = missing.length > 0;
+
+  document.getElementById('generalNotes').value = currentInspection.generalNotes || '';
+  document.getElementById('generalNotes').oninput = e=>{
+    currentInspection.generalNotes = e.target.value;
+    persistCurrent();
+  };
+}
+
+function updateVerdictStyles(){
+  document.querySelectorAll('.verdict-opt').forEach(el=>{
+    el.classList.remove('sel-ok','sel-warn','sel-bad');
+    if(el.dataset.v === currentInspection.verdict) el.classList.add('sel-'+currentInspection.verdict);
+  });
+}
+
+function finishInspection(){
+  // Doble seguro: aunque el botón esté deshabilitado, no permitir cerrar
+  // la inspección si falta alguna foto obligatoria.
+  const missing = getMissingRequiredSteps();
+  if(missing.length > 0){
+    showToast(`Faltan ${missing.length} foto(s) obligatoria(s) para finalizar`);
+    return;
+  }
+  currentInspection.finishedAt = new Date().toISOString();
+  persistCurrent();
+  renderReport();
+  goScreen('report');
+}
+
+/* ---------- REPORT SCREEN ---------- */
+function verdictLabel(v){
+  return v==='ok' ? '✓ APROBADO' : v==='warn' ? '⚠ APROBADO CON OBSERVACIONES' : '✕ RECHAZADO';
+}
+function renderReport(){
+  const insp = currentInspection;
+  const v = insp.vehicle;
+  const vClass = insp.verdict === 'ok' ? 'ok' : insp.verdict === 'warn' ? 'warn' : 'bad';
+
+  // Dos versiones del mismo contenido:
+  // - photosHtmlScreen: fotos grandes, una por fila (se ve bien en el celular/monitor).
+  // - photosHtmlPrint: grilla compacta de varias fotos por fila (maximiza el uso de hojas al imprimir).
+  let photosHtmlScreen = '';
+  let photosHtmlPrint = '';
+
+  GROUP_ORDER.forEach(group=>{
+    const items = insp.steps.filter(s=>s.group===group && s.photo);
+    if(items.length === 0) return;
+    const groupLabel = GROUP_LABELS[group];
+
+    photosHtmlScreen += `<div class="report-section-title screen-only">${groupLabel} (${items.length})</div>`;
+    items.forEach(s=>{
+      photosHtmlScreen += `
+        <div class="report-photo-full screen-only">
+          <img src="${s.photo}">
+          <div class="cap">
+            <b>${s.title}${s.textValue ? ' — '+s.textValue : ''}</b>
+            ${fmtDate(s.capturedAt)}
+            ${s.flagged ? `<div class="note">⚠ Observación: ${s.note || 'sin detalle'}</div>` : ''}
+          </div>
+        </div>`;
+    });
+
+    photosHtmlPrint += `<div class="print-group-title">${groupLabel} — ${items.length} foto${items.length===1?'':'s'}</div>`;
+    photosHtmlPrint += `<div class="print-photo-grid">`;
+    items.forEach(s=>{
+      photosHtmlPrint += `
+        <div class="cell ${s.flagged?'flag':''}">
+          <img src="${s.photo}">
+          ${s.flagged ? '<span class="flag-tag">OBS</span>' : ''}
+          <div class="cap"><b>${s.title}</b>${s.textValue ? ' · '+s.textValue : ''}${s.flagged ? `<br>⚠ ${s.note || 'sin detalle'}` : ''}</div>
+        </div>`;
+    });
+    photosHtmlPrint += `</div>`;
+  });
+
+  const photosHtml = photosHtmlScreen + `<div class="print-only">${photosHtmlPrint}</div>`;
+
+  document.getElementById('reportSheet').innerHTML = `
+    <div class="report-head">
+      <div>
+        <div style="font-family:var(--font-display);font-size:20px;font-weight:600;">AutoCheck</div>
+        <div class="report-id">Informe N.º ${insp.id}</div>
+      </div>
+      <div style="text-align:right;">
+        <div class="report-id">${fmtDate(insp.finishedAt)}</div>
+        <div class="report-id">${v.city || 'Interior de Uruguay'}</div>
+      </div>
+    </div>
+
+    <div class="verdict-banner ${vClass}">${verdictLabel(insp.verdict)}</div>
+
+    <div class="summary-vehicle">
+      <div class="summary-vehicle-plate">${v.plate}</div>
+      <div class="summary-vehicle-desc">${v.brand} ${v.model} ${v.year?('· '+v.year):''}</div>
+      <div class="kv-row"><span>INSPECTOR</span><span>${insp.inspector}</span></div>
+      <div class="kv-row"><span>CLIENTE</span><span>${v.client||'—'}</span></div>
+      <div class="kv-row"><span>SOLICITADO POR</span><span>${v.source}</span></div>
+      <div class="kv-row"><span>GEOLOCALIZACIÓN</span><span>${insp.geo ? insp.geo.lat+', '+insp.geo.lon : 'No disponible'}</span></div>
+      <div class="kv-row"><span>FOTOS CAPTURADAS</span><span>${insp.steps.filter(s=>s.photo).length}/${STEPS.length}</span></div>
+    </div>
+
+    ${insp.generalNotes ? `<div class="report-section-title">Notas del inspector</div><p style="font-size:13.5px;color:var(--text-dim);">${insp.generalNotes}</p>` : ''}
+
+    ${photosHtml}
+
+    <p class="disclaimer">Informe generado automáticamente por la plataforma AutoCheck a partir de evidencia fotográfica capturada en el momento de la inspección. Este documento certifica el estado visual y funcional relevado, no constituye una garantía mecánica ni sustituye una revisión técnica oficial (VTV/CTV, si aplica). Prototipo de plataforma — datos almacenados localmente en este dispositivo.</p>
+  `;
+}
+
+/* ---------- init ---------- */
+initStorage().then(renderStart);
+</script>
+</body>
+</html>
